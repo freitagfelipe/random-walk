@@ -16,6 +16,14 @@ Walker :: struct {
     color: raylib.Color,
 }
 
+App :: struct {
+    draw_texture: raylib.RenderTexture2D,
+    camera: raylib.Camera2D,
+    monitor_width: i32,
+    monitor_height: i32,
+    walkers: []Walker,
+}
+
 update_walker :: proc(walker: ^Walker) -> raylib.Vector2 {
     direction: raylib.Vector2 = {}
 
@@ -36,20 +44,46 @@ update_walker :: proc(walker: ^Walker) -> raylib.Vector2 {
     return old_pos
 }
 
-draw_walker_movement :: proc(new_pos, old_pos: raylib.Vector2, color: raylib.Color) {
-    raylib.DrawLineEx(old_pos, new_pos, 2, color)
-}
+update :: proc(app: ^App) {
+    raylib.BeginTextureMode(app.draw_texture)
 
-update :: proc(texture: raylib.RenderTexture2D, walkers: []Walker) {
-    raylib.BeginTextureMode(texture)
-
-    for &walker in walkers {
+    for &walker in app.walkers {
         old_pos := update_walker(&walker)
 
-        draw_walker_movement(walker.pos, old_pos, walker.color)
+        raylib.DrawLineEx(old_pos, walker.pos, 2, walker.color)
     }
 
     raylib.EndTextureMode()
+}
+
+handle_keyboard_input :: proc(app: ^App) {
+    if raylib.IsKeyDown(raylib.KeyboardKey.W) {
+        app.camera.target.y = max(
+            app.camera.target.y - CAMERA_VELOCITY,
+            0
+        )
+    }
+
+    if raylib.IsKeyDown(raylib.KeyboardKey.A) {
+        app.camera.target.x = max(
+            app.camera.target.x - CAMERA_VELOCITY,
+            0
+        )
+    }
+
+    if raylib.IsKeyDown(raylib.KeyboardKey.S) {
+        app.camera.target.y = min(
+            app.camera.target.y + CAMERA_VELOCITY,
+            f32(app.monitor_height - SCREEN_HEIGHT),
+        )
+    }
+
+    if raylib.IsKeyDown(raylib.KeyboardKey.D) {
+        app.camera.target.x = min(
+            app.camera.target.x + CAMERA_VELOCITY,
+            f32(app.monitor_width - SCREEN_WIDTH),
+        )
+    }
 }
 
 main :: proc() {
@@ -72,10 +106,10 @@ main :: proc() {
     raylib.SetTargetFPS(60)
 
     monitor := raylib.GetCurrentMonitor()
-    max_monitor_width := raylib.GetMonitorWidth(monitor)
-    max_monitor_height := raylib.GetMonitorHeight(monitor)
+    monitor_width := raylib.GetMonitorWidth(monitor)
+    monitor_height := raylib.GetMonitorHeight(monitor)
 
-    screen_center: raylib.Vector2 = {f32(max_monitor_width), f32(max_monitor_height)} / 2
+    screen_center: raylib.Vector2 = {f32(monitor_width), f32(monitor_height)} / 2
 
     camera := raylib.Camera2D {
         target = screen_center - {SCREEN_WIDTH, SCREEN_HEIGHT} / 2,
@@ -90,10 +124,9 @@ main :: proc() {
     defer delete(walkers)
 
     for &walker in walkers {
-        saturation, value: f32 = 1.0, 1.0
-        hue := rand.float32() * 361
+        hue := f32(rand.int31() % 361)
 
-        color := raylib.ColorFromHSV(hue, saturation, value)
+        color := raylib.ColorFromHSV(hue, 1.0, 1.0)
 
         walker = Walker {
             pos = default_walker.pos,
@@ -102,34 +135,22 @@ main :: proc() {
     }
 
     texture := raylib.LoadRenderTexture(
-        max_monitor_width,
-        max_monitor_height,
+        monitor_width,
+        monitor_height,
     )
 
+    app := App {
+        draw_texture = texture,
+        camera = camera,
+        monitor_width = monitor_width,
+        monitor_height = monitor_height,
+        walkers = walkers,
+    }
+
     for !raylib.WindowShouldClose() {
-        update(texture, walkers)
+        handle_keyboard_input(&app)
 
-        if raylib.IsKeyDown(raylib.KeyboardKey.W) {
-            camera.target.y = max(camera.target.y - CAMERA_VELOCITY, 0);
-        }
-
-        if raylib.IsKeyDown(raylib.KeyboardKey.A) {
-            camera.target.x = max(camera.target.x - CAMERA_VELOCITY, 0);
-        }
-
-        if raylib.IsKeyDown(raylib.KeyboardKey.S) {
-            camera.target.y = min(
-                camera.target.y + CAMERA_VELOCITY,
-                f32(max_monitor_height - SCREEN_HEIGHT),
-            )
-        }
-
-        if raylib.IsKeyDown(raylib.KeyboardKey.D) {
-            camera.target.x = min(
-                camera.target.x + CAMERA_VELOCITY,
-                f32(max_monitor_width - SCREEN_WIDTH),
-            )
-        }
+        update(&app)
         
         raylib.BeginDrawing()
 
