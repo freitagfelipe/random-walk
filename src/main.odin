@@ -170,5 +170,7 @@ main :: proc() {
         raylib.EndDrawing()
     }
 
+    raylib.UnloadRenderTexture(app.draw_texture)
+
     raylib.CloseWindow()
 }
