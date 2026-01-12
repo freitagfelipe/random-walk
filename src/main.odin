@@ -154,7 +154,7 @@ main :: proc() {
         
         raylib.BeginDrawing()
 
-        raylib.BeginMode2D(camera)
+        raylib.BeginMode2D(app.camera)
 
         raylib.ClearBackground(raylib.BLACK)
 
